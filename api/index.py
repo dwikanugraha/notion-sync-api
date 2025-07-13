@@ -406,6 +406,43 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
 async def trigger_sync_from_cron():
     """
     Endpoint ini dipanggil oleh Vercel Cron Job.
+    Pertama menghapus semua entri lama, lalu sinkronisasi yang baru.
+    """
+    default_identity = os.getenv("DEFAULT_IDENTITY")
+    default_password = os.getenv("DEFAULT_PASSWORD")
+
+    if not default_identity or not default_password:
+        raise HTTPException(
+            status_code=500,
+            detail="Kredensial default tidak diatur di Environment Variables server."
+        )
+
+    # Tahap 1: Hapus semua entri lama dari Notion
+    try:
+        print("Cron job: Memulai penghapusan entri lama...")
+        deleted_count = delete_all_notion_pages()
+        print(f"Cron job: {deleted_count} entri lama berhasil dihapus.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal menghapus entri lama di Notion: {e}")
+
+    # Tahap 2: Sinkronisasi data baru
+    credentials = LoginCredentials(identity=default_identity, password=default_password)
+    print("Cron job: Memulai sinkronisasi jadwal baru...")
+    sync_result = await sync_jadwal_ke_notion(credentials)
+    print("Cron job: Sinkronisasi selesai.")
+    
+    # Gabungkan hasil untuk laporan log
+    final_report = {
+        "penghapusan": {
+            "status": "sukses",
+            "entri_dihapus": deleted_count
+        },
+        "sinkronisasi_baru": sync_result
+    }
+    
+    return final_report
+    """
+    Endpoint ini dipanggil oleh Vercel Cron Job.
     Kredensial diambil dari Environment Variables.
     """
     # Ambil kredensial default dari environment variables
@@ -427,9 +464,6 @@ async def trigger_sync_from_cron():
     print("Sinkronisasi dari cron job selesai.")
     
     return result
-
-# Tambahkan ini di api/index.py
-# Jangan lupa tambahkan import di bagian atas file: from concurrent.futures import ThreadPoolExecutor
 
 def delete_all_notion_pages():
     """Mengambil semua halaman dari database Notion dan mengarsipkannya (menghapusnya)."""
