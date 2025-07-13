@@ -139,61 +139,6 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
     """
     # Langkah 1: Login dan ambil data jadwal
     jadwal_items = login_dan_dapatkan_jadwal(credentials.identity, credentials.password)
-
-    if not jadwal_items:
-        return {"message": "Tidak ada jadwal yang ditemukan untuk disinkronkan."}
-
-    hasil_notion = []
-    errors = []
-
-    # Langkah 2: Iterasi setiap jadwal dan kirim ke Notion
-    for item in jadwal_items:
-        try:
-            jadwal_str = item['jadwal_string']
-
-            if '-' not in jadwal_str:
-                raise ValueError(f"Format jadwal tidak valid, tidak ada pemisah '-': {jadwal_str}")
-
-            parts = jadwal_str.split('-')
-            if len(parts) != 2:
-                 raise ValueError(f"Format jadwal tidak valid, format split aneh: {jadwal_str}")
-
-            start_str = parts[0].strip()
-            end_str = parts[1].strip()
-
-            start_dt = date_parser.parse(start_str)
-            end_dt = date_parser.parse(end_str, default=start_dt)
-
-            # ==================================================================
-            # --- PERBAIKAN FINAL ---
-            # Menghapus offset "+07:00" dari string agar sesuai permintaan Notion API.
-            # Notion akan menggunakan "time_zone": "Asia/Jakarta" dari payload.
-            
-            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
-            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
-            
-            # --- AKHIR PERBAIKAN ---
-            # ==================================================================
-
-            # Langkah 2b: Kirim ke Notion
-            result = post_to_notion(
-                nama_matkul=item['mata_kuliah'],
-                start_time=start_iso,
-                end_time=end_iso
-            )
-            hasil_notion.append({"status": "sukses", "mata_kuliah": item['mata_kuliah'], "notion_page_id": result.get('id')})
-
-        except Exception as e:
-            error_detail = e.detail if isinstance(e, HTTPException) else str(e)
-            errors.append({"status": "gagal", "mata_kuliah": item.get('mata_kuliah'), "error": error_detail})
-
-    return {
-        "
-    """
-    Endpoint utama untuk login, scrape jadwal, dan push ke Notion.
-    """
-    # Langkah 1: Login dan ambil data jadwal
-    jadwal_items = login_dan_dapatkan_jadwal(credentials.identity, credentials.password)
     
     if not jadwal_items:
         return {"message": "Tidak ada jadwal yang ditemukan untuk disinkronkan."}
