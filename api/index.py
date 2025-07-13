@@ -401,6 +401,32 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
         "gagal": errors
     }
 
+@app.get("/api/cron")
+async def trigger_sync_from_cron():
+    """
+    Endpoint ini dipanggil oleh Vercel Cron Job.
+    Kredensial diambil dari Environment Variables.
+    """
+    # Ambil kredensial default dari environment variables
+    default_identity = os.getenv("DEFAULT_IDENTITY")
+    default_password = os.getenv("DEFAULT_PASSWORD")
+
+    if not default_identity or not default_password:
+        raise HTTPException(
+            status_code=500,
+            detail="Kredensial default tidak diatur di Environment Variables server."
+        )
+
+    # Buat objek LoginCredentials untuk digunakan kembali oleh fungsi yang ada
+    credentials = LoginCredentials(identity=default_identity, password=default_password)
+
+    # Panggil fungsi sinkronisasi utama dengan kredensial yang sudah ada
+    print("Cron job terpicu, memulai sinkronisasi...")
+    result = await sync_jadwal_ke_notion(credentials)
+    print("Sinkronisasi dari cron job selesai.")
+    
+    return result
+
 # Endpoint root untuk verifikasi bahwa API berjalan
 @app.get("/")
 def read_root():
