@@ -56,6 +56,43 @@ def scrape_jadwal_page(session: requests.Session):
             # Membersihkan nama MK dari SKS
             nama_mk_clean = re.sub(r'\s*-\s*\d+\s*sks.*$', '', nama_mk, flags=re.IGNORECASE).strip()
 
+            # --- PERUBAHAN DI SINI ---
+            # Menambahkan 'ruangan' ke dalam data yang diambil
+            jadwal_list.append({
+                'mata_kuliah': nama_mk_clean,
+                'ruangan': cols[4].text.strip(), # Mengambil data dari kolom ruangan
+                'jadwal_string': cols[3].text.strip(),
+            })
+            # --- AKHIR PERUBAHAN ---
+
+        return jadwal_list
+    except Exception as e:
+        print(f"Error saat scrape jadwal: {e}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil data jadwal: {e}")
+    """Mengekstrak jadwal kuliah dari halaman jadwal."""
+    jadwal_url = "https://portal.pknstan.ac.id/stud/jadkul/kulnow"
+    try:
+        response = session.get(jadwal_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'lxml')
+        jadwal_list = []
+        table = soup.find('table', class_=['table-striped', 'table-borderless'])
+        if not table:
+            return []
+
+        rows = table.select('tbody tr')
+        for row in rows:
+            cols = row.find_all('td')
+            if len(cols) < 6: continue
+            
+            # Ekstrak Nama Mata Kuliah
+            mk_cell_html = cols[2].decode_contents()
+            parts = [part.strip() for part in mk_cell_html.split('<br/>')]
+            nama_mk = parts[0].strip() if parts else "Tanpa Nama"
+            
+            # Membersihkan nama MK dari SKS
+            nama_mk_clean = re.sub(r'\s*-\s*\d+\s*sks.*$', '', nama_mk, flags=re.IGNORECASE).strip()
+
             jadwal_list.append({
                 'mata_kuliah': nama_mk_clean,
                 'jadwal_string': cols[3].text.strip(), # e.g., "Senin, 14 Jul 2025 | 14:00 - 16:30"
@@ -134,6 +171,58 @@ def post_to_notion(nama_matkul: str, start_time: str, end_time: str):
 
 @app.post("/api/sync-jadwal")
 async def sync_jadwal_ke_notion(credentials: LoginCredentials):
+    """
+    Endpoint utama untuk login, scrape jadwal, dan push ke Notion.
+    """
+    jadwal_items = login_dan_dapatkan_jadwal(credentials.identity, credentials.password)
+    
+    if not jadwal_items:
+        return {"message": "Tidak ada jadwal yang ditemukan untuk disinkronkan."}
+
+    hasil_notion = []
+    errors = []
+
+    for item in jadwal_items:
+        try:
+            jadwal_str = item['jadwal_string']
+
+            if '-' not in jadwal_str:
+                raise ValueError(f"Format jadwal tidak valid, tidak ada pemisah '-': {jadwal_str}")
+
+            parts = jadwal_str.split('-')
+            if len(parts) != 2:
+                 raise ValueError(f"Format jadwal tidak valid, format split aneh: {jadwal_str}")
+
+            start_str = parts[0].strip()
+            end_str = parts[1].strip()
+
+            start_dt = date_parser.parse(start_str)
+            end_dt = date_parser.parse(end_str, default=start_dt)
+            
+            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+            # --- PERUBAHAN DI SINI ---
+            # Menggabungkan nama mata kuliah dan ruangan
+            nama_lengkap = f"{item['mata_kuliah']} - {item['ruangan']}"
+            # --- AKHIR PERUBAHAN ---
+
+            result = post_to_notion(
+                nama_matkul=nama_lengkap, # Menggunakan nama yang sudah digabung
+                start_time=start_iso,
+                end_time=end_iso
+            )
+            hasil_notion.append({"status": "sukses", "mata_kuliah": nama_lengkap, "notion_page_id": result.get('id')})
+        
+        except Exception as e:
+            error_detail = e.detail if isinstance(e, HTTPException) else str(e)
+            errors.append({"status": "gagal", "mata_kuliah": item.get('mata_kuliah'), "error": error_detail})
+
+    return {
+        "message": f"Proses sinkronisasi selesai. Sukses: {len(hasil_notion)}, Gagal: {len(errors)}",
+        "sukses": hasil_notion,
+        "gagal": errors
+    }
     """
     Endpoint utama untuk login, scrape jadwal, dan push ke Notion.
     """
