@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import os
 import requests
 import re
@@ -426,6 +427,54 @@ async def trigger_sync_from_cron():
     print("Sinkronisasi dari cron job selesai.")
     
     return result
+
+# Tambahkan ini di api/index.py
+# Jangan lupa tambahkan import di bagian atas file: from concurrent.futures import ThreadPoolExecutor
+
+def delete_all_notion_pages():
+    """Mengambil semua halaman dari database Notion dan mengarsipkannya (menghapusnya)."""
+    if not NOTION_API_KEY or not NOTION_DATABASE_ID:
+        raise HTTPException(status_code=500, detail="Konfigurasi Notion API tidak ditemukan.")
+
+    query_url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
+    pages_to_delete = []
+    has_more = True
+    start_cursor = None
+
+    # 1. Ambil semua ID halaman dari database (menangani paginasi)
+    while has_more:
+        payload = {}
+        if start_cursor:
+            payload['start_cursor'] = start_cursor
+        
+        response = requests.post(query_url, headers=NOTION_HEADERS, json=payload)
+        response.raise_for_status()
+        data = response.json()
+        
+        for page in data.get('results', []):
+            pages_to_delete.append(page['id'])
+            
+        has_more = data.get('has_more', False)
+        start_cursor = data.get('next_cursor', None)
+
+    if not pages_to_delete:
+        return 0 # Tidak ada yang perlu dihapus
+
+    # 2. Hapus semua halaman secara paralel untuk efisiensi
+    def archive_page(page_id):
+        archive_url = f"https://api.notion.com/v1/pages/{page_id}"
+        archive_payload = {"archived": True}
+        try:
+            requests.patch(archive_url, headers=NOTION_HEADERS, json=archive_payload).raise_for_status()
+            return "sukses"
+        except requests.exceptions.HTTPError as e:
+            print(f"Gagal menghapus page {page_id}: {e}")
+            return "gagal"
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(archive_page, pages_to_delete)
+
+    return len(pages_to_delete)
 
 # Endpoint root untuk verifikasi bahwa API berjalan
 @app.get("/")
