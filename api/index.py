@@ -177,8 +177,8 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
             # ==================================================================
             
             # Format ke ISO 8601 dengan timezone +07:00 (WIB/Asia/Jakarta)
-            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
-            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
+            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
 
             # Langkah 2b: Kirim ke Notion
             result = post_to_notion(
@@ -241,8 +241,8 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
             start_dt = date_parser.parse(f"{date_part} {start_time_str}")
             end_dt = date_parser.parse(f"{date_part} {end_time_str}")
             
-            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
-            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
+            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
 
             # Langkah 2b: Kirim ke Notion
             result = post_to_notion(
@@ -290,8 +290,8 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
             start_dt = date_parser.parse(f"{date_part} {start_time_str}")
             end_dt = date_parser.parse(f"{date_part} {end_time_str}")
             
-            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
-            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
+            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
 
             # Langkah 2b: Kirim ke Notion
             result = post_to_notion(
