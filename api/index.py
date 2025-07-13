@@ -152,6 +152,70 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
             jadwal_str = item['jadwal_string']
 
             # ==================================================================
+            # --- PERUBAHAN LOGIKA PARSING ---
+            #
+            # Logika ini dirancang untuk format "DD Mmm YYYY HH:MM - HH:MM"
+            #
+            if '-' not in jadwal_str:
+                raise ValueError(f"Format jadwal tidak valid, tidak ada pemisah '-': {jadwal_str}")
+
+            parts = jadwal_str.split('-')
+            if len(parts) != 2:
+                 raise ValueError(f"Format jadwal tidak valid, format split aneh: {jadwal_str}")
+
+            start_str = parts[0].strip()
+            end_str = parts[1].strip()
+
+            # Parsing string awal untuk mendapatkan tanggal dan waktu mulai
+            start_dt = date_parser.parse(start_str)
+
+            # Parsing string akhir dengan menggunakan tanggal dari string awal sebagai default
+            # Ini akan mengambil '16:30' dan menggabungkannya dengan tanggal dari start_dt
+            end_dt = date_parser.parse(end_str, default=start_dt)
+            #
+            # --- AKHIR PERUBAHAN ---
+            # ==================================================================
+            
+            # Format ke ISO 8601 dengan timezone +07:00 (WIB/Asia/Jakarta)
+            start_iso = start_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
+            end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S') + "+07:00"
+
+            # Langkah 2b: Kirim ke Notion
+            result = post_to_notion(
+                nama_matkul=item['mata_kuliah'],
+                start_time=start_iso,
+                end_time=end_iso
+            )
+            hasil_notion.append({"status": "sukses", "mata_kuliah": item['mata_kuliah'], "notion_page_id": result.get('id')})
+        
+        except Exception as e:
+            # Menangkap error dari parsing atau dari post_to_notion
+            error_detail = e.detail if isinstance(e, HTTPException) else str(e)
+            errors.append({"status": "gagal", "mata_kuliah": item.get('mata_kuliah'), "error": error_detail})
+
+    return {
+        "message": f"Proses sinkronisasi selesai. Sukses: {len(hasil_notion)}, Gagal: {len(errors)}",
+        "sukses": hasil_notion,
+        "gagal": errors
+    }
+    """
+    Endpoint utama untuk login, scrape jadwal, dan push ke Notion.
+    """
+    # Langkah 1: Login dan ambil data jadwal
+    jadwal_items = login_dan_dapatkan_jadwal(credentials.identity, credentials.password)
+    
+    if not jadwal_items:
+        return {"message": "Tidak ada jadwal yang ditemukan untuk disinkronkan."}
+
+    hasil_notion = []
+    errors = []
+
+    # Langkah 2: Iterasi setiap jadwal dan kirim ke Notion
+    for item in jadwal_items:
+        try:
+            jadwal_str = item['jadwal_string']
+
+            # ==================================================================
             # --- PERBAIKAN DIMULAI DI SINI ---
             #
             # Validasi format string jadwal sebelum di-parsing untuk menghindari error.
