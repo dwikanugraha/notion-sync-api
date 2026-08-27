@@ -23,7 +23,7 @@ NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
 # --- Header untuk Notion API ---
 NOTION_HEADERS = {
-    "Authorization": f"{NOTION_API_KEY}",
+    "Authorization": f"Bearer {NOTION_API_KEY}",
     "Content-Type": "application/json",
     "Notion-Version": "2022-06-28",
 }
