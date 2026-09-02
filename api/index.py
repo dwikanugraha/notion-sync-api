@@ -60,8 +60,8 @@ def scrape_jadwal_page(session: requests.Session):
             # --- PERUBAHAN DI SINI ---
             # Menambahkan 'ruangan' ke dalam data yang diambil
             jadwal_list.append({
-                'mata_kuliah': nama_mk_clean,
                 'ruangan': cols[4].text.strip(), # Mengambil data dari kolom ruangan
+                'mata_kuliah': nama_mk_clean,
                 'jadwal_string': cols[3].text.strip(),
             })
             # --- AKHIR PERUBAHAN ---
