@@ -205,7 +205,7 @@ async def sync_jadwal_ke_notion(credentials: LoginCredentials):
 
             # --- PERUBAHAN DI SINI ---
             # Menggabungkan nama mata kuliah dan ruangan
-            nama_lengkap = f"{item['mata_kuliah']} - {item['ruangan']}"
+            nama_lengkap = {item['ruangan']} - f"{item['mata_kuliah']}"
             # --- AKHIR PERUBAHAN ---
 
             result = post_to_notion(
